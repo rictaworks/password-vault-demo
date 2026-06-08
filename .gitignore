@@ -1,0 +1,38 @@
+# 環境変数
+.env
+.env.*
+
+# Claude 設定
+.claude/
+
+# 仕様書（読み取り専用）
+password-vault-demo-spec.md
+
+# 管理ディレクトリ
+TASKS/
+DEBUG/
+CLIENT/
+WORK/
+DELETE/
+ENV/
+
+# デザインモック（読み取り専用）
+app-ui/
+
+# テスト
+test/
+
+# Node.js
+node_modules/
+.expo/
+dist/
+build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# エディタ
+.vscode/
+.idea/
+*.swp
