@@ -1,6 +1,7 @@
 # 環境変数
 .env
-.env.*
+.env.local
+.env.production
 
 # Claude 設定
 .claude/
@@ -19,8 +20,6 @@ ENV/
 # デザインモック（読み取り専用）
 app-ui/
 
-# テスト
-test/
 
 # Node.js
 node_modules/
