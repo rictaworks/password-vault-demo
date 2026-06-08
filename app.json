@@ -42,9 +42,10 @@
     "experiments": {
       "typedRoutes": true
     },
+    "owner": "rictaworks",
     "extra": {
       "eas": {
-        "projectId": "demo-project-id"
+        "projectId": "4e60ca1d-e0df-4dc8-8e55-eb6fdb2bd81f"
       }
     }
   }
