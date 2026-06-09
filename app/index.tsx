@@ -22,16 +22,34 @@ export default function LockScreen() {
   const { isAuthenticated, setAuthenticated } = useAppContext()
 
   const [showMasterPw, setShowMasterPw] = useState(false)
+  const [isNewUser, setIsNewUser] = useState<boolean | null>(null)
   const [masterPwInput, setMasterPwInput] = useState('')
+  const [confirmPwInput, setConfirmPwInput] = useState('')
   const [failureCount, setFailureCount] = useState(0)
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState<'error' | 'info'>('error')
   const [lockedOut, setLockedOut] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (isAuthenticated) {
       router.replace('/vault')
     }
   }, [isAuthenticated])
+
+  useEffect(() => {
+    AuthService.hasMasterPassword().then(setIsNewUser).catch(() => setIsNewUser(false))
+  }, [])
+
+  function showError(msg: string) {
+    setMessage(msg)
+    setMessageType('error')
+  }
+
+  function showInfo(msg: string) {
+    setMessage(msg)
+    setMessageType('info')
+  }
 
   async function handleBiometric() {
     if (lockedOut) return
@@ -40,34 +58,64 @@ export default function LockScreen() {
       setAuthenticated(true)
     } else if (result === 'unavailable') {
       setShowMasterPw(true)
-      setMessage(t.lock.biometricUnavailable)
+      showInfo(t.lock.biometricUnavailable)
     } else {
       const next = failureCount + 1
       setFailureCount(next)
-      setMessage(t.lock.failureMessage(next, AUTH.MAX_FAILURES))
+      showError(t.lock.failureMessage(next, AUTH.MAX_FAILURES))
       if (next >= AUTH.MAX_FAILURES) {
         setLockedOut(true)
-        setMessage(t.lock.lockedOut)
+        showError(t.lock.lockedOut)
       }
     }
   }
 
   async function handleMasterPassword() {
-    if (!masterPwInput.trim()) return
+    if (loading) return
+
+    if (!masterPwInput.trim()) {
+      showError(t.lock.errorEmpty)
+      return
+    }
+
+    if (isNewUser === false) {
+      // 登録モード：確認入力チェック
+      if (!confirmPwInput.trim()) {
+        showError(t.lock.errorConfirmEmpty)
+        return
+      }
+      if (masterPwInput !== confirmPwInput) {
+        showError(t.lock.errorMismatch)
+        setConfirmPwInput('')
+        return
+      }
+    }
+
+    setLoading(true)
+    setMessage('')
     const result = await AuthService.masterPasswordAuth(masterPwInput)
+    setLoading(false)
     setMasterPwInput('')
+    setConfirmPwInput('')
+
     if (result === 'success') {
       setAuthenticated(true)
     } else {
       const next = failureCount + 1
       setFailureCount(next)
-      setMessage(t.lock.failureMessage(next, AUTH.MAX_FAILURES))
+      showError(
+        isNewUser === false
+          ? t.lock.errorSetupFailed
+          : t.lock.errorWrongPassword(next, AUTH.MAX_FAILURES),
+      )
       if (next >= AUTH.MAX_FAILURES) {
         setLockedOut(true)
-        setMessage(t.lock.lockedOut)
+        showError(t.lock.lockedOut)
       }
     }
   }
+
+  const isSetupMode = isNewUser === false
 
   return (
     <KeyboardAvoidingView
@@ -77,7 +125,9 @@ export default function LockScreen() {
       <View style={styles.header}>
         <FontAwesome name="lock" size={64} color="#7c3aed" />
         <Text style={styles.title}>{t.lock.title}</Text>
-        <Text style={styles.subtitle}>{t.lock.subtitle}</Text>
+        <Text style={styles.subtitle}>
+          {showMasterPw && isSetupMode ? t.lock.subtitleSetup : t.lock.subtitle}
+        </Text>
       </View>
 
       {IS_DEV && (
@@ -87,7 +137,9 @@ export default function LockScreen() {
       )}
 
       {message ? (
-        <Text style={styles.message}>{message}</Text>
+        <Text style={[styles.message, messageType === 'info' && styles.messageInfo]}>
+          {message}
+        </Text>
       ) : null}
 
       {!lockedOut && !showMasterPw && (
@@ -100,7 +152,12 @@ export default function LockScreen() {
       {!lockedOut && (
         <TouchableOpacity
           style={styles.secondaryButton}
-          onPress={() => setShowMasterPw((v) => !v)}
+          onPress={() => {
+            setShowMasterPw((v) => !v)
+            setMessage('')
+            setMasterPwInput('')
+            setConfirmPwInput('')
+          }}
         >
           <Text style={styles.secondaryButtonText}>{t.lock.masterPasswordButton}</Text>
         </TouchableOpacity>
@@ -116,14 +173,39 @@ export default function LockScreen() {
             value={masterPwInput}
             onChangeText={setMasterPwInput}
             autoFocus
-            onSubmitEditing={handleMasterPassword}
-            returnKeyType="done"
+            onSubmitEditing={isSetupMode ? undefined : handleMasterPassword}
+            returnKeyType={isSetupMode ? 'next' : 'done'}
+            editable={!loading}
           />
+
+          {isSetupMode && (
+            <TextInput
+              style={styles.input}
+              placeholder={t.lock.confirmPasswordPlaceholder}
+              placeholderTextColor="#6b7280"
+              secureTextEntry
+              value={confirmPwInput}
+              onChangeText={setConfirmPwInput}
+              onSubmitEditing={handleMasterPassword}
+              returnKeyType="done"
+              editable={!loading}
+            />
+          )}
+
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
             onPress={handleMasterPassword}
+            disabled={loading}
           >
-            <Text style={styles.primaryButtonText}>{t.lock.masterPasswordSubmit}</Text>
+            <Text style={styles.primaryButtonText}>
+              {loading
+                ? isSetupMode
+                  ? t.lock.settingUp
+                  : t.lock.verifying
+                : isSetupMode
+                  ? t.lock.masterPasswordSetup
+                  : t.lock.masterPasswordSubmit}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -172,6 +254,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontSize: 14,
   },
+  messageInfo: {
+    color: '#9ca3af',
+  },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -188,6 +273,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  primaryButtonDisabled: {
+    opacity: 0.5,
   },
   secondaryButton: {
     paddingVertical: 10,

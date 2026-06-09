@@ -5,12 +5,23 @@ const ja = {
   lock: {
     title: 'Password Vault',
     subtitle: 'ロック中',
+    subtitleSetup: '初回設定',
     biometricButton: '指紋でロック解除',
     masterPasswordButton: 'マスターパスワードを使用',
     masterPasswordPlaceholder: 'マスターパスワード',
+    confirmPasswordPlaceholder: 'もう一度入力',
     masterPasswordSubmit: 'ロック解除',
+    masterPasswordSetup: 'パスワードを設定する',
+    verifying: '照合中...',
+    settingUp: '登録中...',
     failureMessage: (count: number, max: number) =>
       `認証失敗 ${count}/${max}`,
+    errorEmpty: 'パスワードを入力してください',
+    errorConfirmEmpty: '確認用パスワードを入力してください',
+    errorMismatch: 'パスワードが一致しません',
+    errorWrongPassword: (count: number, max: number) =>
+      `パスワードが違います (${count}/${max})`,
+    errorSetupFailed: '登録に失敗しました。再度お試しください',
     lockedOut: 'アプリをバックグラウンドに移動しました',
     biometricUnavailable: '生体認証が利用できません',
   },
