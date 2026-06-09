@@ -1,4 +1,4 @@
-import { randomBytes } from '@noble/ciphers/webcrypto'
+import * as ExpoCrypto from 'expo-crypto'
 import type { GenOptions, StrengthResult, Strength } from '../types'
 import { STRENGTH_SCORE_THRESHOLDS, PASSWORD_GENERATOR } from '../config/constants'
 
@@ -105,7 +105,7 @@ class PasswordEvaluator {
       PASSWORD_GENERATOR.MAX_LENGTH,
     )
 
-    const randomBuf = randomBytes(clampedLength * 4)
+    const randomBuf = ExpoCrypto.getRandomBytes(clampedLength * 4)
     const view = new DataView(randomBuf.buffer)
 
     let result = ''

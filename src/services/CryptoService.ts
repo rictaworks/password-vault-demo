@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store'
+import * as ExpoCrypto from 'expo-crypto'
 import { gcm } from '@noble/ciphers/aes'
-import { randomBytes } from '@noble/ciphers/webcrypto'
 import { SECURE_STORE_KEYS, CRYPTO } from '../config/constants'
 
 function uint8ToBase64(bytes: Uint8Array): string {
@@ -32,7 +32,7 @@ class CryptoService {
       return this.key
     }
 
-    const newKey = randomBytes(CRYPTO.KEY_LENGTH_BYTES)
+    const newKey = ExpoCrypto.getRandomBytes(CRYPTO.KEY_LENGTH_BYTES)
     await SecureStore.setItemAsync(
       SECURE_STORE_KEYS.ENCRYPTION_KEY,
       uint8ToBase64(newKey),
@@ -43,7 +43,7 @@ class CryptoService {
 
   async encrypt(plain: string): Promise<string> {
     const key = await this.getOrCreateKey()
-    const iv = randomBytes(CRYPTO.IV_LENGTH_BYTES)
+    const iv = ExpoCrypto.getRandomBytes(CRYPTO.IV_LENGTH_BYTES)
     const cipher = gcm(key, iv)
     const encoded = new TextEncoder().encode(plain)
     const ciphertext = cipher.encrypt(encoded)
