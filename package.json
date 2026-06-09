@@ -20,7 +20,7 @@
     "expo-localization": "~15.0.0",
     "expo-router": "~4.0.0",
     "expo-secure-store": "~14.0.0",
-    "expo-sqlite": "~14.0.0",
+    "expo-sqlite": "~15.1.4",
     "react": "18.3.1",
     "react-native": "0.76.5"
   },
@@ -34,7 +34,9 @@
   },
   "jest": {
     "preset": "jest-expo",
-    "setupFilesAfterEnv": ["./jest.setup.ts"],
+    "setupFilesAfterEnv": [
+      "./jest.setup.ts"
+    ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
     },
