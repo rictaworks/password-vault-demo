@@ -1,6 +1,9 @@
 import * as LocalAuth from 'expo-local-authentication'
 import * as SecureStore from 'expo-secure-store'
 import { BackHandler } from 'react-native'
+import { pbkdf2 } from '@noble/hashes/pbkdf2'
+import { sha256 } from '@noble/hashes/sha256'
+import { randomBytes } from '@noble/ciphers/webcrypto'
 import { AUTH, SECURE_STORE_KEYS } from '../config/constants'
 import type { AuthPurpose, AuthResult } from '../types'
 
@@ -21,28 +24,12 @@ function base64ToUint8(b64: string): Uint8Array {
   return bytes
 }
 
-async function pbkdf2Hash(
-  password: string,
-  salt: Uint8Array,
-): Promise<ArrayBuffer> {
+function pbkdf2Hash(password: string, salt: Uint8Array): Uint8Array {
   const enc = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    enc.encode(password),
-    { name: 'PBKDF2' },
-    false,
-    ['deriveBits'],
-  )
-  return crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt,
-      iterations: AUTH.PBKDF2_ITERATIONS,
-      hash: 'SHA-256',
-    },
-    keyMaterial,
-    AUTH.PBKDF2_KEY_LENGTH,
-  )
+  return pbkdf2(sha256, enc.encode(password), salt, {
+    c: AUTH.PBKDF2_ITERATIONS,
+    dkLen: AUTH.PBKDF2_KEY_LENGTH / 8,
+  })
 }
 
 class AuthService {
@@ -105,10 +92,8 @@ class AuthService {
   }
 
   async setupMasterPassword(password: string): Promise<void> {
-    const saltBytes = new Uint8Array(16)
-    crypto.getRandomValues(saltBytes)
-    const hashBuf = await pbkdf2Hash(password, saltBytes)
-    const hashBytes = new Uint8Array(hashBuf)
+    const saltBytes = randomBytes(16)
+    const hashBytes = pbkdf2Hash(password, saltBytes)
     await SecureStore.setItemAsync(
       SECURE_STORE_KEYS.MASTER_PASSWORD_SALT,
       uint8ToBase64(saltBytes),
@@ -143,8 +128,7 @@ class AuthService {
     }
 
     const salt = base64ToUint8(storedSaltB64)
-    const hashBuf = await pbkdf2Hash(input, salt)
-    const computed = uint8ToBase64(new Uint8Array(hashBuf))
+    const computed = uint8ToBase64(pbkdf2Hash(input, salt))
 
     if (computed === storedHashB64) {
       this.authFlag = true
