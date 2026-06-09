@@ -90,6 +90,14 @@ plan → red test → coding → green test
 - **開発環境では認証済み状態に分岐すること**（テスト可能にするため）
 - 環境変数は `.env` を参照（`.env` はコミットしない）
 
+## Hermes エンジン対応（重要）
+
+React Native の本番ビルドは Hermes JS エンジンで動作する。以下の制約を必ず守ること：
+
+- **`@noble/ciphers/webcrypto` の `randomBytes` 使用禁止** → `expo-crypto.getRandomBytes()` を使うこと
+- **`crypto.subtle`（WebCrypto API）使用禁止** → `@noble/hashes/pbkdf2` 等の純粋JS実装を使うこと
+- `crypto.getRandomValues` は Expo SDK 52 / React Native 0.76 では利用可能だが、`expo-crypto` 経由が確実
+
 ## セキュリティ
 
 - commit 前に **security review** を必ず実施
