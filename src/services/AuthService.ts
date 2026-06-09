@@ -1,9 +1,9 @@
 import * as LocalAuth from 'expo-local-authentication'
 import * as SecureStore from 'expo-secure-store'
+import * as ExpoCrypto from 'expo-crypto'
 import { BackHandler } from 'react-native'
 import { pbkdf2 } from '@noble/hashes/pbkdf2'
 import { sha256 } from '@noble/hashes/sha256'
-import { randomBytes } from '@noble/ciphers/webcrypto'
 import { AUTH, SECURE_STORE_KEYS } from '../config/constants'
 import type { AuthPurpose, AuthResult } from '../types'
 
@@ -92,7 +92,7 @@ class AuthService {
   }
 
   async setupMasterPassword(password: string): Promise<void> {
-    const saltBytes = randomBytes(16)
+    const saltBytes = ExpoCrypto.getRandomBytes(16)
     const hashBytes = pbkdf2Hash(password, saltBytes)
     await SecureStore.setItemAsync(
       SECURE_STORE_KEYS.MASTER_PASSWORD_SALT,
@@ -112,37 +112,42 @@ class AuthService {
   }
 
   async masterPasswordAuth(input: string): Promise<AuthResult> {
-    const storedSaltB64 = await SecureStore.getItemAsync(
-      SECURE_STORE_KEYS.MASTER_PASSWORD_SALT,
-    )
-    const storedHashB64 = await SecureStore.getItemAsync(
-      SECURE_STORE_KEYS.MASTER_PASSWORD_HASH,
-    )
+    try {
+      const storedSaltB64 = await SecureStore.getItemAsync(
+        SECURE_STORE_KEYS.MASTER_PASSWORD_SALT,
+      )
+      const storedHashB64 = await SecureStore.getItemAsync(
+        SECURE_STORE_KEYS.MASTER_PASSWORD_HASH,
+      )
 
-    if (!storedSaltB64 || !storedHashB64) {
-      await this.setupMasterPassword(input)
-      this.authFlag = true
-      this.failureCount = 0
-      this.resetTimer()
-      return 'success'
+      if (!storedSaltB64 || !storedHashB64) {
+        await this.setupMasterPassword(input)
+        this.authFlag = true
+        this.failureCount = 0
+        this.resetTimer()
+        return 'success'
+      }
+
+      const salt = base64ToUint8(storedSaltB64)
+      const computed = uint8ToBase64(pbkdf2Hash(input, salt))
+
+      if (computed === storedHashB64) {
+        this.authFlag = true
+        this.failureCount = 0
+        this.resetTimer()
+        return 'success'
+      }
+
+      this.failureCount++
+      if (this.failureCount >= AUTH.MAX_FAILURES) {
+        this.failureCount = 0
+        BackHandler.exitApp()
+      }
+      return 'failure'
+    } catch (e) {
+      console.error('[AuthService] masterPasswordAuth error:', e)
+      return 'failure'
     }
-
-    const salt = base64ToUint8(storedSaltB64)
-    const computed = uint8ToBase64(pbkdf2Hash(input, salt))
-
-    if (computed === storedHashB64) {
-      this.authFlag = true
-      this.failureCount = 0
-      this.resetTimer()
-      return 'success'
-    }
-
-    this.failureCount++
-    if (this.failureCount >= AUTH.MAX_FAILURES) {
-      this.failureCount = 0
-      BackHandler.exitApp()
-    }
-    return 'failure'
   }
 }
 
